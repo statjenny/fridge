@@ -95,6 +95,21 @@
 - 不得在浏览器中暴露云端管理员密钥。
 - 本地已有的 `data/items.json` 应提供一次性导入到用户选定冰箱的能力。
 
+### 6.1 前端安全基线
+
+- 网页使用 Content Security Policy，仅允许本站、指定 Supabase 项目和固定版本的 Supabase 浏览器库。
+- 第三方 Supabase 浏览器库必须固定精确版本并使用 Subresource Integrity 校验，避免运行时拉取浮动版本。
+- 页面设置 `no-referrer`，邀请码链接不得作为 Referer 发送到其他站点。
+- 浏览器端仅可使用 Supabase Publishable key；严禁提交或暴露 `service_role`、数据库密码和其他管理员密钥。
+
+### 6.2 数据库安全基线
+
+- 所有公开数据表启用 Row Level Security。
+- 物品、冰箱和成员数据仅允许对应冰箱的已登录成员访问。
+- 邀请与成员检查函数使用 `SECURITY DEFINER` 时，必须设置空 `search_path` 并使用完整对象名称。
+- 上述函数必须撤销 `public` 的默认执行权限，仅向 `authenticated` 授予必要的执行权限。
+- 当前项目已执行 `supabase-security-migration.sql` 以应用这些函数权限限制。
+
 ## 7. 界面要求
 
 - 简洁、清爽、偏移动端清单 App 风格。
@@ -112,6 +127,8 @@
 6. 管理员可移除成员；被移除成员之后无法读取或修改该冰箱。
 7. 电脑关闭时，手机仍可通过 HTTPS 网页正常使用。
 8. 现有本地物品数据可导入一个指定冰箱，且不重复导入。
+9. 浏览器仅能连接到允许的 Supabase 地址和固定版本的客户端库；邀请码链接不会作为 Referer 外泄。
+10. 匿名请求无法执行创建邀请或接受邀请的数据库函数。
 
 ## 9. 当前未完成能力
 
