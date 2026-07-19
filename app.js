@@ -85,7 +85,29 @@ async function loadMembers() { const { data, error } = await supabase.from('frid
 $('createInviteBtn').onclick = async () => { const { data, error } = await supabase.rpc('create_invite', { target_fridge: activeFridge.id, valid_days: 7 }); if (error) return showError(error); const link = `${location.origin}${location.pathname}?invite=${data}`; $('inviteResult').textContent = link; try { await navigator.clipboard.writeText(link); $('inviteResult').textContent = '邀请链接已复制，可发送给家人。'; } catch {} };
 async function acceptInviteFromUrl() { const token = new URLSearchParams(location.search).get('invite'); if (!token) return; const { error } = await supabase.rpc('accept_invite', { invite_token: token }); history.replaceState({}, '', location.pathname); if (error) return showError(error); alert('你已加入家庭冰箱。'); }
 
-$('authForm').onsubmit = async (event) => { event.preventDefault(); const email = $('email').value.trim(), password = $('password').value, displayName = $('displayName').value.trim(); $('authMessage').textContent = '处理中…'; const result = isSignup ? await supabase.auth.signUp({ email, password, options: { data: { display_name: displayName || email.split('@')[0] } } }) : await supabase.auth.signInWithPassword({ email, password }); $('authMessage').textContent = result.error ? result.error.message : (isSignup ? '注册成功，请检查邮箱完成验证后登录。' : ''); };
-$('signUpBtn').onclick = () => { isSignup = !isSignup; document.querySelector('.signup-only').classList.toggle('hidden', !isSignup); $('signInBtn').textContent = isSignup ? '注册并登录' : '登录'; $('signUpBtn').textContent = isSignup ? '已有账号？去登录' : '注册新账号'; };
+$('authForm').onsubmit = async (event) => {
+  event.preventDefault();
+  const email = $('email').value.trim(), password = $('password').value, displayName = $('displayName').value.trim();
+  $('authMessage').textContent = '处理中…';
+  const result = isSignup
+    ? await supabase.auth.signUp({ email, password, options: { data: { display_name: displayName || email.split('@')[0] } } })
+    : await supabase.auth.signInWithPassword({ email, password });
+  if (result.error) { $('authMessage').textContent = result.error.message; return; }
+  if (isSignup && !result.data.user?.identities?.length) {
+    $('authMessage').textContent = '该邮箱可能已注册，请直接登录或使用其他邮箱。';
+    return;
+  }
+  $('authMessage').textContent = isSignup
+    ? '注册成功！请打开邮箱完成验证，再回来登录。'
+    : '';
+};
+$('signUpBtn').onclick = () => {
+  isSignup = !isSignup;
+  document.querySelector('.signup-only').classList.toggle('hidden', !isSignup);
+  $('password').autocomplete = isSignup ? 'new-password' : 'current-password';
+  $('signInBtn').textContent = isSignup ? '注册账号' : '登录';
+  $('signUpBtn').textContent = isSignup ? '已有账号？去登录' : '注册新账号';
+  $('authMessage').textContent = '';
+};
 $('accountBtn').onclick = async () => { if (confirm('要退出当前账号吗？')) await supabase.auth.signOut(); };
 initialize();
