@@ -7,6 +7,7 @@ const addDialog = $('addDialog'), editDialog = $('editDialog'), actionDialog = $
 let currentUser, fridges = [], activeFridge, items = [], editingId, actionItemId, isSignup = false;
 
 function setModal(dialog, open) { dialog.classList.toggle('hidden', !open); document.body.classList.toggle('modal-open', open); }
+function trackEvent(name, parameters) { window.trackEvent?.(name, parameters); }
 function today() { return new Date().toISOString().slice(0, 10); }
 function escapeHtml(value) { return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;'); }
 function refreshSubCategories(category, select) { const options = subCategories[category] || ['其他']; select.innerHTML = options.map((value) => `<option value="${value}">${value}</option>`).join(''); }
@@ -23,7 +24,10 @@ async function initialize() {
   if (!supabaseClient) { $('authMessage').textContent = '缺少 Supabase 配置。'; return; }
   const { data: { session } } = await supabaseClient.auth.getSession();
   await handleSession(session);
-  supabaseClient.auth.onAuthStateChange((_event, session) => { handleSession(session); });
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN') trackEvent('login');
+    handleSession(session);
+  });
 }
 
 async function handleSession(session) {
@@ -67,7 +71,7 @@ function renderSummary() {
 async function saveItem(item) {
   const row = { fridge_id: activeFridge.id, name: item.name, category: item.category, sub_category: item.subCategory, quantity: item.quantity, recorded_on: item.time, expiry_date: item.expiryDate || null };
   const query = item.id ? supabaseClient.from('items').update(row).eq('id', item.id) : supabaseClient.from('items').insert(row);
-  const { error } = await query; if (error) return showError(error); rememberDefaults(item); await loadItems();
+  const { error } = await query; if (error) return showError(error); rememberDefaults(item); trackEvent(item.id ? 'item_updated' : 'item_added'); await loadItems();
 }
 function formItem(form, id) { const data = new FormData(form); return { id, name: String(data.get('name')).trim(), category: String(data.get('category')), subCategory: String(data.get('subCategory')), quantity: Number(data.get('quantity')), time: String(data.get('time')), expiryDate: String(data.get('expiryDate')) }; }
 function prepareForm(form) {
@@ -89,7 +93,7 @@ $('category').onchange = () => refreshSubCategories($('category').value, $('subC
 summary.onclick = (event) => { const button = event.target.closest('.summary-name'); if (!button) return; actionItemId = Number(button.dataset.id); setModal(actionDialog, true); };
 $('actionCancelBtn').onclick = () => setModal(actionDialog, false);
 $('actionEditBtn').onclick = () => { const item = items.find((entry) => entry.id === actionItemId); if (!item) return; editingId = item.id; $('editName').value = item.name; $('editCategory').value = item.category; refreshSubCategories(item.category, $('editSubCategory')); $('editSubCategory').value = item.subCategory; $('editQuantity').value = item.quantity; $('editTime').value = item.time; $('editExpiryDate').value = item.expiryDate; setModal(actionDialog, false); setModal(editDialog, true); };
-$('actionDeleteBtn').onclick = async () => { const item = items.find((entry) => entry.id === actionItemId); if (!item || !confirm(`确定删除“${item.name}”吗？`)) return; const { error } = await supabaseClient.from('items').delete().eq('id', item.id); if (error) return showError(error); setModal(actionDialog, false); await loadItems(); };
+$('actionDeleteBtn').onclick = async () => { const item = items.find((entry) => entry.id === actionItemId); if (!item || !confirm(`确定删除“${item.name}”吗？`)) return; const { error } = await supabaseClient.from('items').delete().eq('id', item.id); if (error) return showError(error); trackEvent('item_deleted'); setModal(actionDialog, false); await loadItems(); };
 $('cancelEditBtn').onclick = () => setModal(editDialog, false);
 $('editCategory').onchange = () => refreshSubCategories($('editCategory').value, $('editSubCategory'));
 editForm.onsubmit = async (event) => { event.preventDefault(); await saveItem(formItem(editForm, editingId)); setModal(editDialog, false); };
@@ -98,8 +102,8 @@ $('fridgeSelect').onchange = async () => { activeFridge = fridges.find((entry) =
 $('manageFamilyBtn').onclick = async () => { await loadMembers(); setModal(familyDialog, true); };
 $('closeFamilyBtn').onclick = () => setModal(familyDialog, false);
 async function loadMembers() { const { data, error } = await supabaseClient.from('fridge_members').select('role, profiles(display_name)').eq('fridge_id', activeFridge.id); if (error) return showError(error); document.querySelector('.member-list').innerHTML = data.map((member) => `<div class="member-row"><span class="member-avatar">${escapeHtml((member.profiles?.display_name || '成').slice(0, 1))}</span><span>${escapeHtml(member.profiles?.display_name || '家庭成员')}</span><small>${member.role === 'admin' ? '管理员' : '成员'}</small></div>`).join(''); }
-$('createInviteBtn').onclick = async () => { const { data, error } = await supabaseClient.rpc('create_invite', { target_fridge: activeFridge.id, valid_days: 7 }); if (error) return showError(error); const link = `${location.origin}${location.pathname}?invite=${data}`; $('inviteResult').textContent = link; try { await navigator.clipboard.writeText(link); $('inviteResult').textContent = '邀请链接已复制，可发送给家人。'; } catch {} };
-async function acceptInviteFromUrl() { const token = new URLSearchParams(location.search).get('invite'); if (!token) return; const { error } = await supabaseClient.rpc('accept_invite', { invite_token: token }); history.replaceState({}, '', location.pathname); if (error) return showError(error); alert('你已加入家庭冰箱。'); }
+$('createInviteBtn').onclick = async () => { const { data, error } = await supabaseClient.rpc('create_invite', { target_fridge: activeFridge.id, valid_days: 7 }); if (error) return showError(error); trackEvent('invite_created'); const link = `${location.origin}${location.pathname}?invite=${data}`; $('inviteResult').textContent = link; try { await navigator.clipboard.writeText(link); $('inviteResult').textContent = '邀请链接已复制，可发送给家人。'; } catch {} };
+async function acceptInviteFromUrl() { const token = new URLSearchParams(location.search).get('invite'); if (!token) return; const { error } = await supabaseClient.rpc('accept_invite', { invite_token: token }); history.replaceState({}, '', location.pathname); if (error) return showError(error); trackEvent('invite_accepted'); alert('你已加入家庭冰箱。'); }
 
 $('authForm').onsubmit = async (event) => {
   event.preventDefault();
@@ -113,6 +117,7 @@ $('authForm').onsubmit = async (event) => {
     $('authMessage').textContent = '该邮箱可能已注册，请直接登录或使用其他邮箱。';
     return;
   }
+  if (isSignup) trackEvent('sign_up');
   $('authMessage').textContent = isSignup
     ? '注册成功！请打开邮箱完成验证，再回来登录。'
     : '';
