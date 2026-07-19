@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <title>冰箱物品管理</title>
+    <link rel="stylesheet" href="styles.css?v=20260718-10" />
+</head>
+
+<body>
+    <div class="app">
+        <header class="hero">
+            <div class="hero-topline">
+                <div>
+                    <p class="eyebrow">我的食物清单</p>
+                    <h1>我的冰箱有什么</h1>
+                    <p class="hero-text">吃完再买哦~</p>
+                </div>
+                <button id="accountBtn" class="avatar-btn" type="button" aria-label="账户设置">J</button>
+            </div>
+        </header>
+
+        <section class="panel">
+            <div class="fridge-switcher">
+                <div>
+                    <p class="section-label">当前冰箱</p>
+                    <select id="fridgeSelect" aria-label="切换冰箱">
+                        <option value="personal">我的冰箱</option>
+                        <option value="family">幸福一家冰箱 · 3 位成员</option>
+                    </select>
+                </div>
+                <button id="manageFamilyBtn" class="secondary-btn" type="button">管理家庭</button>
+            </div>
+            <div class="panel-header">
+                <div>
+                    <h2 id="listTitle">我的冰箱</h2>
+                    <p id="syncStatus" class="sync-status">本机清单</p>
+                </div>
+                <button id="openAddDialogBtn" class="primary-btn" type="button">+ 添加物品</button>
+            </div>
+        </section>
+
+        <section id="summary" class="summary-panel"></section>
+    </div>
+
+    <div id="familyDialog" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="familyDialogTitle">
+        <div class="modal-panel compact-panel">
+            <div class="dialog-heading">
+                <div>
+                    <p class="section-label">家庭共享</p>
+                    <h2 id="familyDialogTitle">幸福一家冰箱</h2>
+                </div>
+                <button id="closeFamilyBtn" class="icon-btn" type="button" aria-label="关闭">×</button>
+            </div>
+            <div class="member-list">
+                <div class="member-row"><span class="member-avatar">J</span><span>Jenny</span><small>管理员</small></div>
+                <div class="member-row"><span class="member-avatar member-avatar-soft">M</span><span>妈妈</span><small>成员</small></div>
+                <div class="member-row"><span class="member-avatar member-avatar-warm">D</span><span>爸爸</span><small>成员</small></div>
+            </div>
+            <div class="invite-callout">
+                <strong>邀请家人</strong>
+                <p>创建一次性链接，有效期为 7 天。</p>
+                <button id="createInviteBtn" class="secondary-btn" type="button">创建邀请链接</button>
+                <p id="inviteResult" class="invite-result" aria-live="polite"></p>
+            </div>
+        </div>
+    </div>
+
+    <div id="authDialog" class="modal" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+        <div class="modal-panel compact-panel">
+            <p class="section-label">跨设备同步</p>
+            <h2 id="authTitle">登录我的冰箱</h2>
+            <p class="hero-text">登录后可在电脑和手机查看同一份清单。</p>
+            <form id="authForm" class="dialog-form auth-form">
+                <div class="field signup-only hidden"><label for="displayName">昵称</label><input id="displayName" type="text" placeholder="例如：Jenny" /></div>
+                <div class="field"><label for="email">邮箱</label><input id="email" type="email" required autocomplete="email" /></div>
+                <div class="field"><label for="password">密码</label><input id="password" type="password" required minlength="6" autocomplete="current-password" /></div>
+                <p id="authMessage" class="form-message" aria-live="polite"></p>
+                <button id="signInBtn" class="primary-btn" type="submit">登录</button>
+                <button id="signUpBtn" class="text-btn" type="button">注册新账号</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="addDialog" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="addDialogTitle">
+        <div class="modal-panel">
+            <form id="itemForm" class="dialog-form">
+                <h2 id="addDialogTitle">添加物品</h2>
+
+                <div class="field">
+                    <label for="category">大类</label>
+                    <select id="category" name="category">
+                        <option value="冷冻">冷冻</option>
+                        <option value="冷藏">冷藏</option>
+                        <option value="干货">干货</option>
+                        <option value="罐头">罐头</option>
+                        <option value="速食">速食</option>
+                        <option value="零食">零食</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="subCategory">小类</label>
+                    <select id="subCategory" name="subCategory"></select>
+                </div>
+
+                <div class="field">
+                    <label for="name">物品名称</label>
+                    <input id="name" name="name" type="text" placeholder="例如：牛奶" required />
+                </div>
+
+                <div class="field">
+                    <label for="quantity">数量</label>
+                    <input id="quantity" name="quantity" type="number" min="1" value="1" required />
+                </div>
+
+                <div class="field">
+                    <label for="time">时间</label>
+                    <input id="time" name="time" type="date" required />
+                </div>
+
+                <div class="field">
+                    <label for="expiryDate">到期时间（可选）</label>
+                    <input id="expiryDate" name="expiryDate" type="date" />
+                </div>
+
+                <menu class="dialog-actions">
+                    <button type="button" id="cancelAddBtn">取消</button>
+                    <button class="primary-btn" type="submit">添加</button>
+                </menu>
+            </form>
+        </div>
+    </div>
+
+    <div id="actionDialog" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="actionDialogTitle">
+        <div class="modal-panel compact-panel">
+            <h2 id="actionDialogTitle">选择操作</h2>
+            <div class="action-buttons">
+                <button id="actionEditBtn" class="primary-btn" type="button">编辑</button>
+                <button id="actionDeleteBtn" class="delete-btn" type="button">删除</button>
+            </div>
+            <div class="dialog-actions">
+                <button id="actionCancelBtn" type="button">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editDialog" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="editDialogTitle">
+        <div class="modal-panel">
+            <form id="editForm" class="dialog-form">
+                <h2 id="editDialogTitle">编辑物品</h2>
+
+                <div class="field">
+                    <label for="editName">物品名称</label>
+                    <input id="editName" name="name" type="text" required />
+                </div>
+
+                <div class="field">
+                    <label for="editCategory">大类</label>
+                    <select id="editCategory" name="category">
+                        <option value="冷冻">冷冻</option>
+                        <option value="冷藏">冷藏</option>
+                        <option value="干货">干货</option>
+                        <option value="罐头">罐头</option>
+                        <option value="速食">速食</option>
+                        <option value="零食">零食</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="editSubCategory">小类</label>
+                    <select id="editSubCategory" name="subCategory"></select>
+                </div>
+
+                <div class="field">
+                    <label for="editQuantity">数量</label>
+                    <input id="editQuantity" name="quantity" type="number" min="1" required />
+                </div>
+
+                <div class="field">
+                    <label for="editTime">时间</label>
+                    <input id="editTime" name="time" type="date" required />
+                </div>
+
+                <div class="field">
+                    <label for="editExpiryDate">到期时间（可选）</label>
+                    <input id="editExpiryDate" name="expiryDate" type="date" />
+                </div>
+
+                <menu class="dialog-actions">
+                    <button type="button" id="cancelEditBtn">取消</button>
+                    <button class="primary-btn" type="submit">保存</button>
+                </menu>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="app.js?v=20260718-10"></script>
+</body>
+
+</html>
