@@ -1,5 +1,7 @@
 const { url, publishableKey } = window.SUPABASE_CONFIG || {};
-const supabaseClient = window.supabase?.createClient(url, publishableKey);
+const supabaseClient = window.supabase?.createClient(url, publishableKey, {
+  global: { fetch: (input, init = {}) => window.fetch(input, { ...init, cache: 'no-store' }) }
+});
 const subCategories = { 冷冻: ['海鲜', '肉', '主食', '其他'], 冷藏: ['水果', '蔬菜', '饮料', '酱料', '咸菜', '其他'], 干货: ['坚果', '罐头', '蔬菜干', '其他'], 速食: ['其他'], 零食: ['其他'] };
 const $ = (id) => document.getElementById(id);
 const itemForm = $('itemForm'), editForm = $('editForm'), summary = $('summary');
@@ -18,6 +20,16 @@ function storedDefaults() {
 }
 function rememberDefaults(item) {
   try { localStorage.setItem(defaultCategoryKey(), JSON.stringify({ category: item.category, subCategory: item.subCategory })); } catch {}
+}
+function showAddedItemImmediately(item) {
+  const matchingItem = items.find((entry) => entry.category === item.category && entry.subCategory === item.subCategory && entry.name === item.name);
+  if (matchingItem) {
+    matchingItem.quantity += item.quantity;
+    if (item.expiryDate && (!matchingItem.expiryDate || item.expiryDate < matchingItem.expiryDate)) matchingItem.expiryDate = item.expiryDate;
+  } else {
+    items = [{ ...item, id: `pending-${Date.now()}` }, ...items];
+  }
+  renderSummary();
 }
 
 async function initialize() {
@@ -133,8 +145,14 @@ itemForm.onsubmit = async (event) => {
   event.preventDefault();
   const item = formItem(itemForm);
   if (!item.name) return;
+  const itemsBeforeSave = items.map((entry) => ({ ...entry }));
   setModal(addDialog, false);
-  if (!(await saveItem(item))) setModal(addDialog, true);
+  showAddedItemImmediately(item);
+  if (!(await saveItem(item))) {
+    items = itemsBeforeSave;
+    renderSummary();
+    setModal(addDialog, true);
+  }
 };
 $('category').onchange = () => refreshSubCategories($('category').value, $('subCategory'));
 summary.onclick = (event) => { const button = event.target.closest('.summary-name'); if (!button) return; actionItemId = Number(button.dataset.id); setModal(actionDialog, true); };
