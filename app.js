@@ -89,7 +89,12 @@ function renderSummary() {
 async function saveItem(item) {
   const row = { fridge_id: activeFridge.id, name: item.name, category: item.category, sub_category: item.subCategory, quantity: item.quantity, recorded_on: item.time, expiry_date: item.expiryDate || null };
   const query = item.id ? supabaseClient.from('items').update(row).eq('id', item.id) : supabaseClient.from('items').insert(row);
-  const { error } = await query; if (error) return showError(error); rememberDefaults(item); trackEvent(item.id ? 'item_updated' : 'item_added'); await loadItems();
+  const { error } = await query;
+  if (error) { showError(error); return false; }
+  rememberDefaults(item);
+  trackEvent(item.id ? 'item_updated' : 'item_added');
+  await loadItems();
+  return true;
 }
 function formItem(form, id) { const data = new FormData(form); return { id, name: String(data.get('name')).trim(), category: String(data.get('category')), subCategory: String(data.get('subCategory')), quantity: Number(data.get('quantity')), time: String(data.get('time')), expiryDate: String(data.get('expiryDate')) }; }
 function prepareForm(form) {
@@ -106,7 +111,7 @@ function showError(error) { console.error(error); alert(error.message || '操作
 
 $('openAddDialogBtn').onclick = () => { prepareForm(itemForm); setModal(addDialog, true); $('name').focus(); };
 $('cancelAddBtn').onclick = () => setModal(addDialog, false);
-itemForm.onsubmit = async (event) => { event.preventDefault(); const item = formItem(itemForm); if (!item.name) return; await saveItem(item); setModal(addDialog, false); };
+itemForm.onsubmit = async (event) => { event.preventDefault(); const item = formItem(itemForm); if (!item.name) return; if (await saveItem(item)) setModal(addDialog, false); };
 $('category').onchange = () => refreshSubCategories($('category').value, $('subCategory'));
 summary.onclick = (event) => { const button = event.target.closest('.summary-name'); if (!button) return; actionItemId = Number(button.dataset.id); setModal(actionDialog, true); };
 $('actionCancelBtn').onclick = () => setModal(actionDialog, false);
@@ -133,7 +138,7 @@ $('actionDeleteBtn').onclick = async () => {
 };
 $('cancelEditBtn').onclick = () => setModal(editDialog, false);
 $('editCategory').onchange = () => refreshSubCategories($('editCategory').value, $('editSubCategory'));
-editForm.onsubmit = async (event) => { event.preventDefault(); await saveItem(formItem(editForm, editingId)); setModal(editDialog, false); };
+editForm.onsubmit = async (event) => { event.preventDefault(); if (await saveItem(formItem(editForm, editingId))) setModal(editDialog, false); };
 
 $('fridgeSelect').onchange = async () => { activeFridge = fridges.find((entry) => entry.id === $('fridgeSelect').value); await loadItems(); };
 $('manageFamilyBtn').onclick = async () => { await loadMembers(); setModal(familyDialog, true); };
