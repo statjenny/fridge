@@ -87,12 +87,25 @@ function renderSummary() {
 }
 
 async function saveItem(item) {
-  const row = { fridge_id: activeFridge.id, name: item.name, category: item.category, sub_category: item.subCategory, quantity: item.quantity, recorded_on: item.time, expiry_date: item.expiryDate || null };
-  const query = item.id
-    ? supabaseClient.from('items').update(row).eq('id', item.id).select('id')
-    : supabaseClient.from('items').insert(row).select('id');
-  const { data, error } = await query;
-  if (error || !data?.length) {
+  let { data, error } = await supabaseClient.rpc('save_or_merge_item', {
+    p_item_id: item.id || null,
+    p_fridge_id: activeFridge.id,
+    p_name: item.name,
+    p_category: item.category,
+    p_sub_category: item.subCategory,
+    p_quantity: item.quantity,
+    p_recorded_on: item.time,
+    p_expiry_date: item.expiryDate || null
+  });
+  if (error?.code === 'PGRST202') {
+    const row = { fridge_id: activeFridge.id, name: item.name, category: item.category, sub_category: item.subCategory, quantity: item.quantity, recorded_on: item.time, expiry_date: item.expiryDate || null };
+    const legacyResult = item.id
+      ? await supabaseClient.from('items').update(row).eq('id', item.id).select('id')
+      : await supabaseClient.from('items').insert(row).select('id');
+    data = legacyResult.data?.[0]?.id;
+    error = legacyResult.error;
+  }
+  if (error || !data) {
     showError(error || new Error('保存未完成，请检查是否有该冰箱的编辑权限。'));
     return false;
   }
