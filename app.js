@@ -111,7 +111,26 @@ $('category').onchange = () => refreshSubCategories($('category').value, $('subC
 summary.onclick = (event) => { const button = event.target.closest('.summary-name'); if (!button) return; actionItemId = Number(button.dataset.id); setModal(actionDialog, true); };
 $('actionCancelBtn').onclick = () => setModal(actionDialog, false);
 $('actionEditBtn').onclick = () => { const item = items.find((entry) => entry.id === actionItemId); if (!item) return; editingId = item.id; $('editName').value = item.name; $('editCategory').value = item.category; refreshSubCategories(item.category, $('editSubCategory')); $('editSubCategory').value = item.subCategory; $('editQuantity').value = item.quantity; $('editTime').value = item.time; $('editExpiryDate').value = item.expiryDate; setModal(actionDialog, false); setModal(editDialog, true); };
-$('actionDeleteBtn').onclick = async () => { const item = items.find((entry) => entry.id === actionItemId); if (!item || !confirm(`确定删除“${item.name}”吗？`)) return; const { error } = await supabaseClient.from('items').delete().eq('id', item.id); if (error) return showError(error); trackEvent('item_deleted'); setModal(actionDialog, false); await loadItems(); };
+$('actionDeleteBtn').onclick = async () => {
+  const item = items.find((entry) => entry.id === actionItemId);
+  if (!item || !confirm(`确定删除“${item.name}”吗？`)) return;
+
+  const itemsBeforeDelete = items;
+  setModal(actionDialog, false);
+  items = items.filter((entry) => entry.id !== item.id);
+  renderSummary();
+
+  const { data, error } = await supabaseClient.from('items').delete().eq('id', item.id).select('id');
+  if (error || !data?.some((entry) => entry.id === item.id)) {
+    items = itemsBeforeDelete;
+    renderSummary();
+    showError(error || new Error('删除未完成，请检查是否有该冰箱的编辑权限。'));
+    return;
+  }
+
+  trackEvent('item_deleted');
+  await loadItems();
+};
 $('cancelEditBtn').onclick = () => setModal(editDialog, false);
 $('editCategory').onchange = () => refreshSubCategories($('editCategory').value, $('editSubCategory'));
 editForm.onsubmit = async (event) => { event.preventDefault(); await saveItem(formItem(editForm, editingId)); setModal(editDialog, false); };
