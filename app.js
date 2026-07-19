@@ -64,8 +64,26 @@ async function loadItems() {
 
 function renderSummary() {
   if (!items.length) { summary.innerHTML = '<div class="empty-state">暂时没有物品，先添加一个吧。</div>'; return; }
-  const groups = items.reduce((result, item) => { (result[item.subCategory] ||= []).push(item); return result; }, {});
-  summary.innerHTML = Object.entries(groups).map(([name, group]) => `<section class="summary-card"><h2>${escapeHtml(name)} 汇总</h2><table class="summary-table"><thead><tr><th>物品</th><th>数量</th><th>到期时间</th></tr></thead><tbody>${group.map((item) => `<tr><td><button class="summary-name" data-id="${item.id}" type="button">${escapeHtml(item.name)}</button></td><td>${item.quantity}</td><td>${escapeHtml(item.expiryDate || '无')}</td></tr>`).join('')}</tbody></table></section>`).join('');
+  const categories = items.reduce((result, item) => {
+    (result[item.category] ||= {});
+    (result[item.category][item.subCategory] ||= []).push(item);
+    return result;
+  }, {});
+  summary.innerHTML = Object.entries(categories).map(([category, subGroups]) => `
+    <section class="summary-card category-summary-card">
+      <div class="category-summary-title"><h2>${escapeHtml(category)}</h2><span>${Object.values(subGroups).flat().length} 项</span></div>
+      <div class="category-summary-groups">
+        ${Object.entries(subGroups).map(([subCategory, group]) => `
+          <div class="category-summary-group">
+            <h3>${escapeHtml(subCategory)}</h3>
+            <div class="item-chip-list">
+              ${group.map((item) => `<button class="summary-name item-chip" data-id="${item.id}" type="button"><span>${escapeHtml(item.name)}</span><small>×${item.quantity}${item.expiryDate ? ` · ${escapeHtml(item.expiryDate)}` : ''}</small></button>`).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </section>
+  `).join('');
 }
 
 async function saveItem(item) {
