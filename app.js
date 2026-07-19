@@ -138,7 +138,12 @@ $('actionDeleteBtn').onclick = async () => {
 };
 $('cancelEditBtn').onclick = () => setModal(editDialog, false);
 $('editCategory').onchange = () => refreshSubCategories($('editCategory').value, $('editSubCategory'));
-editForm.onsubmit = async (event) => { event.preventDefault(); if (await saveItem(formItem(editForm, editingId))) setModal(editDialog, false); };
+editForm.onsubmit = async (event) => {
+  event.preventDefault();
+  const updatedItem = formItem(editForm, editingId);
+  setModal(editDialog, false);
+  if (!(await saveItem(updatedItem))) setModal(editDialog, true);
+};
 
 $('fridgeSelect').onchange = async () => { activeFridge = fridges.find((entry) => entry.id === $('fridgeSelect').value); await loadItems(); };
 $('manageFamilyBtn').onclick = async () => { await loadMembers(); setModal(familyDialog, true); };
