@@ -11,6 +11,13 @@ function today() { return new Date().toISOString().slice(0, 10); }
 function escapeHtml(value) { return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;'); }
 function refreshSubCategories(category, select) { const options = subCategories[category] || ['其他']; select.innerHTML = options.map((value) => `<option value="${value}">${value}</option>`).join(''); }
 function itemFromRow(row) { return { id: row.id, name: row.name, category: row.category, subCategory: row.sub_category, quantity: row.quantity, time: row.recorded_on, expiryDate: row.expiry_date || '' }; }
+function defaultCategoryKey() { return `fridge-defaults:${currentUser?.id || 'guest'}:${activeFridge?.id || 'default'}`; }
+function storedDefaults() {
+  try { return JSON.parse(localStorage.getItem(defaultCategoryKey())) || {}; } catch { return {}; }
+}
+function rememberDefaults(item) {
+  try { localStorage.setItem(defaultCategoryKey(), JSON.stringify({ category: item.category, subCategory: item.subCategory })); } catch {}
+}
 
 async function initialize() {
   if (!supabaseClient) { $('authMessage').textContent = '缺少 Supabase 配置。'; return; }
@@ -60,10 +67,19 @@ function renderSummary() {
 async function saveItem(item) {
   const row = { fridge_id: activeFridge.id, name: item.name, category: item.category, sub_category: item.subCategory, quantity: item.quantity, recorded_on: item.time, expiry_date: item.expiryDate || null };
   const query = item.id ? supabaseClient.from('items').update(row).eq('id', item.id) : supabaseClient.from('items').insert(row);
-  const { error } = await query; if (error) return showError(error); await loadItems();
+  const { error } = await query; if (error) return showError(error); rememberDefaults(item); await loadItems();
 }
 function formItem(form, id) { const data = new FormData(form); return { id, name: String(data.get('name')).trim(), category: String(data.get('category')), subCategory: String(data.get('subCategory')), quantity: Number(data.get('quantity')), time: String(data.get('time')), expiryDate: String(data.get('expiryDate')) }; }
-function prepareForm(form) { form.reset(); form.elements.quantity.value = 1; form.elements.time.value = today(); form.elements.category.value = '冷藏'; refreshSubCategories('冷藏', form.elements.subCategory); }
+function prepareForm(form) {
+  form.reset();
+  const defaults = storedDefaults();
+  const category = subCategories[defaults.category] ? defaults.category : '冷藏';
+  form.elements.quantity.value = 1;
+  form.elements.time.value = today();
+  form.elements.category.value = category;
+  refreshSubCategories(category, form.elements.subCategory);
+  if (subCategories[category].includes(defaults.subCategory)) form.elements.subCategory.value = defaults.subCategory;
+}
 function showError(error) { console.error(error); alert(error.message || '操作失败，请稍后重试。'); }
 
 $('openAddDialogBtn').onclick = () => { prepareForm(itemForm); setModal(addDialog, true); $('name').focus(); };
