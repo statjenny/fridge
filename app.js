@@ -129,7 +129,13 @@ function showError(error) { console.error(error); alert(error.message || '操作
 
 $('openAddDialogBtn').onclick = () => { prepareForm(itemForm); setModal(addDialog, true); $('name').focus(); };
 $('cancelAddBtn').onclick = () => setModal(addDialog, false);
-itemForm.onsubmit = async (event) => { event.preventDefault(); const item = formItem(itemForm); if (!item.name) return; if (await saveItem(item)) setModal(addDialog, false); };
+itemForm.onsubmit = async (event) => {
+  event.preventDefault();
+  const item = formItem(itemForm);
+  if (!item.name) return;
+  setModal(addDialog, false);
+  if (!(await saveItem(item))) setModal(addDialog, true);
+};
 $('category').onchange = () => refreshSubCategories($('category').value, $('subCategory'));
 summary.onclick = (event) => { const button = event.target.closest('.summary-name'); if (!button) return; actionItemId = Number(button.dataset.id); setModal(actionDialog, true); };
 $('actionCancelBtn').onclick = () => setModal(actionDialog, false);
