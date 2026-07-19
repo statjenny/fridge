@@ -1,6 +1,6 @@
 const { url, publishableKey } = window.SUPABASE_CONFIG || {};
 const supabaseClient = window.supabase?.createClient(url, publishableKey);
-const subCategories = { 冷冻: ['海鲜', '肉', '主食', '其他'], 冷藏: ['水果', '蔬菜', '饮料', '酱料', '其他'], 干货: ['其他'], 罐头: ['其他'], 速食: ['其他'], 零食: ['其他'] };
+const subCategories = { 冷冻: ['海鲜', '肉', '主食', '其他'], 冷藏: ['水果', '蔬菜', '饮料', '酱料', '咸菜', '其他'], 干货: ['坚果', '罐头', '蔬菜干', '其他'], 罐头: ['其他'], 速食: ['其他'], 零食: ['其他'] };
 const $ = (id) => document.getElementById(id);
 const itemForm = $('itemForm'), editForm = $('editForm'), summary = $('summary');
 const addDialog = $('addDialog'), editDialog = $('editDialog'), actionDialog = $('actionDialog'), familyDialog = $('familyDialog'), authDialog = $('authDialog');
