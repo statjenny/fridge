@@ -88,9 +88,14 @@ function renderSummary() {
 
 async function saveItem(item) {
   const row = { fridge_id: activeFridge.id, name: item.name, category: item.category, sub_category: item.subCategory, quantity: item.quantity, recorded_on: item.time, expiry_date: item.expiryDate || null };
-  const query = item.id ? supabaseClient.from('items').update(row).eq('id', item.id) : supabaseClient.from('items').insert(row);
-  const { error } = await query;
-  if (error) { showError(error); return false; }
+  const query = item.id
+    ? supabaseClient.from('items').update(row).eq('id', item.id).select('id')
+    : supabaseClient.from('items').insert(row).select('id');
+  const { data, error } = await query;
+  if (error || !data?.length) {
+    showError(error || new Error('保存未完成，请检查是否有该冰箱的编辑权限。'));
+    return false;
+  }
   rememberDefaults(item);
   trackEvent(item.id ? 'item_updated' : 'item_added');
   await loadItems();
@@ -141,8 +146,15 @@ $('editCategory').onchange = () => refreshSubCategories($('editCategory').value,
 editForm.onsubmit = async (event) => {
   event.preventDefault();
   const updatedItem = formItem(editForm, editingId);
+  const itemsBeforeSave = items;
   setModal(editDialog, false);
-  if (!(await saveItem(updatedItem))) setModal(editDialog, true);
+  items = items.map((item) => item.id === updatedItem.id ? updatedItem : item);
+  renderSummary();
+  if (!(await saveItem(updatedItem))) {
+    items = itemsBeforeSave;
+    renderSummary();
+    setModal(editDialog, true);
+  }
 };
 
 $('fridgeSelect').onchange = async () => { activeFridge = fridges.find((entry) => entry.id === $('fridgeSelect').value); await loadItems(); };
