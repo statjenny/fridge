@@ -51,7 +51,7 @@ alter table public.items enable row level security;
 alter table public.invite_links enable row level security;
 
 create or replace function public.is_fridge_member(target_fridge uuid)
-returns boolean language sql stable security definer set search_path = public as $$
+returns boolean language sql stable security definer set search_path = '' as $$
   select exists (select 1 from public.fridge_members where fridge_id = target_fridge and user_id = auth.uid());
 $$;
 
@@ -69,7 +69,7 @@ create policy "users read shared profiles" on public.profiles for select using (
 );
 
 create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer set search_path = public as $$
+returns trigger language plpgsql security definer set search_path = '' as $$
 declare new_fridge uuid;
 begin
   insert into public.profiles (id, display_name)
@@ -83,7 +83,7 @@ $$;
 create trigger on_auth_user_created after insert on auth.users for each row execute procedure public.handle_new_user();
 
 create or replace function public.create_invite(target_fridge uuid, valid_days integer default 7)
-returns uuid language plpgsql security definer set search_path = public as $$
+returns uuid language plpgsql security definer set search_path = '' as $$
 declare invite_token uuid;
 begin
   if not exists (select 1 from public.fridge_members where fridge_id = target_fridge and user_id = auth.uid() and role = 'admin') then
@@ -97,7 +97,7 @@ end;
 $$;
 
 create or replace function public.accept_invite(invite_token uuid)
-returns uuid language plpgsql security definer set search_path = public as $$
+returns uuid language plpgsql security definer set search_path = '' as $$
 declare target_fridge uuid;
 begin
   select fridge_id into target_fridge from public.invite_links
@@ -112,3 +112,8 @@ $$;
 
 grant execute on function public.create_invite(uuid, integer) to authenticated;
 grant execute on function public.accept_invite(uuid) to authenticated;
+grant execute on function public.is_fridge_member(uuid) to authenticated;
+revoke execute on function public.is_fridge_member(uuid) from public;
+revoke execute on function public.create_invite(uuid, integer) from public;
+revoke execute on function public.accept_invite(uuid) from public;
+revoke execute on function public.handle_new_user() from public;
